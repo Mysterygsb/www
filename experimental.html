@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wyverns Racing — Experimental</title>
+<meta name="description" content="Wesley's Wyverns Racing, a student STEM Racing team from Kingswood School, Bath. An experimental, fully 3D version of the team site built around the car's own CAD model.">
+<meta name="theme-color" content="#0b0b0a">
+<link rel="icon" type="image/png" sizes="64x64" href="assets/img/favicon-64.png">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="preload" href="assets/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/instrument-sans-normal-500.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face { font-family: "Fraunces"; src: url("assets/fonts/fraunces-italic-300-900.woff2") format("woff2"); font-style: italic; font-weight: 300 900; font-display: swap; }
+@font-face { font-family: "Fraunces"; src: url("assets/fonts/fraunces-normal-300-900.woff2") format("woff2"); font-style: normal; font-weight: 300 900; font-display: swap; }
+@font-face { font-family: "Newsreader"; src: url("assets/fonts/newsreader-italic-400-500.woff2") format("woff2"); font-style: italic; font-weight: 400 500; font-display: swap; }
+@font-face { font-family: "Newsreader"; src: url("assets/fonts/newsreader-normal-400-600.woff2") format("woff2"); font-style: normal; font-weight: 400 600; font-display: swap; }
+@font-face { font-family: "Archivo"; src: url("assets/fonts/archivo-latin.woff2") format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; font-style: normal; font-display: swap; }
+@font-face { font-family: "Instrument Sans"; src: url("assets/fonts/instrument-sans-normal-400.woff2") format("woff2"); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: "Instrument Sans"; src: url("assets/fonts/instrument-sans-normal-500.woff2") format("woff2"); font-style: normal; font-weight: 500; font-display: swap; }
+@font-face { font-family: "Instrument Sans"; src: url("assets/fonts/instrument-sans-normal-600.woff2") format("woff2"); font-style: normal; font-weight: 600; font-display: swap; }
+
+:root {
+  --night: #0b0b0a; --night-2: #151410; --cream: #f3eee5; --cream-2: #b9b2a6; --cream-3: #7d776d;
+  --red: #ff2b2f; --red-d: #c8101a; --line: rgba(243,238,229,.14); --line-2: rgba(243,238,229,.32);
+  --disp: "Fraunces", Georgia, serif; --text: "Newsreader", Georgia, serif; --ui: "Instrument Sans", system-ui, sans-serif;
+  --g: clamp(18px, 4vw, 56px);
+  --out: cubic-bezier(.23,1,.32,1); --io: cubic-bezier(.77,0,.175,1); --soft: cubic-bezier(.16,1,.3,1);
+}
+* { box-sizing: border-box; }
+html { background: var(--night); color: var(--cream); -webkit-text-size-adjust: 100%; }
+body { margin: 0; font: 400 18px/1.55 var(--text); background: var(--night); overflow-x: hidden; }
+a { color: inherit; }
+button { font: inherit; color: inherit; }
+::selection { background: var(--red); color: var(--night); }
+.k { font: 600 11px/1.3 var(--ui); letter-spacing: .16em; text-transform: uppercase; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+.skip { position: fixed; left: 12px; top: -60px; z-index: 50; padding: 10px 16px; border-radius: 999px; background: var(--cream); color: var(--night); font: 500 14px var(--ui); text-decoration: none; }
+.skip:focus { top: 12px; }
+
+/* the 3D world sits behind everything */
+#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 0; touch-action: pan-y; }
+.no-gl #gl { display: none; }
+.no-gl body { background: radial-gradient(120% 80% at 70% 20%, #2a2721, var(--night) 70%); }
+.grain { position: fixed; inset: -50%; z-index: 1; pointer-events: none; opacity: .07; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+.vignette { position: fixed; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(0,0,0,.55)); }
+
+/* labels projected from 3D */
+.tags { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+.tag { position: absolute; left: 0; top: 0; pointer-events: auto; display: flex; align-items: center; gap: 8px; padding: 0; border: 0; background: none; cursor: pointer; opacity: 0; transition: opacity 300ms ease; will-change: transform; white-space: nowrap; }
+.tag.is-on { opacity: 1; }
+.tag__dot { width: 10px; height: 10px; border-radius: 50%; background: var(--cream); box-shadow: 0 0 0 4px rgba(243,238,229,.16); flex: none; transition: transform 160ms var(--out), background-color 200ms ease; }
+.tag__txt { font: 500 12px/1 var(--ui); letter-spacing: .04em; padding: 6px 10px; border-radius: 999px; background: rgba(11,11,10,.72); border: 1px solid var(--line); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); transition: background-color 200ms ease, color 200ms ease; }
+.tag[aria-pressed="true"] .tag__dot { background: var(--red); transform: scale(1.25); }
+.tag[aria-pressed="true"] .tag__txt { background: var(--cream); color: var(--night); }
+@media (hover: hover) and (pointer: fine) { .tag:hover .tag__dot { transform: scale(1.3); } .tag:hover .tag__txt { border-color: var(--line-2); } }
+.tag.is-left { flex-direction: row-reverse; translate: calc(-100% + 10px) 0; }
+span.tag { pointer-events: none; cursor: default; }
+.tag--corner .tag__dot { width: 6px; height: 6px; box-shadow: none; background: var(--cream-2); }
+.tag--corner .tag__txt { padding: 4px 8px; font-size: 10px; }
+button.tag--corner { padding: 6px; margin: -6px; }
+button.tag--corner[aria-pressed="true"] .tag__dot { background: var(--red); }
+#race::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(11,11,10,.82) 0%, rgba(11,11,10,.5) 34%, transparent 52%); }
+#race .panel { position: relative; z-index: 1; }
+@media (max-width: 860px) { #race::before { display: none; } }
+.turn { margin-top: 22px; padding: 16px 18px; border-radius: 12px; border: 1px solid rgba(255,43,47,.45); background: rgba(200,16,26,.12); }
+.turn[hidden] { display: none; }
+.turn__k { margin: 0; color: var(--red); }
+.turn__t { margin: 6px 0 0; font: 400 26px/1.1 var(--disp); letter-spacing: -.015em; }
+.turn .note { margin-top: 10px; }
+.turn-ctl { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+.turn-ctl [hidden] { display: none; }
+.tag--start .tag__dot { background: var(--red); }
+
+/* chrome */
+.top { position: fixed; left: 0; right: 0; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px var(--g); pointer-events: none; }
+.top > * { pointer-events: auto; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 600 15px/1 var(--disp); letter-spacing: -.01em; }
+.brand img { width: 30px; height: 30px; }
+.brand i { font-weight: 400; }
+.top__right { display: flex; align-items: center; gap: 10px; }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line-2); background: rgba(11,11,10,.45); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); text-decoration: none; cursor: pointer; transition: background-color 200ms ease, color 200ms ease, transform 140ms var(--out); }
+.chip:active { transform: scale(.96); }
+@media (hover: hover) and (pointer: fine) { .chip:hover { background: var(--cream); color: var(--night); } }
+.chip[aria-pressed="true"] { background: var(--cream); color: var(--night); }
+
+.rail { position: fixed; right: var(--g); top: 50%; z-index: 20; translate: 0 -50%; display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.rail a { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 6px 0; text-decoration: none; color: var(--cream-3); transition: color 200ms ease; }
+.rail a span { opacity: 0; transform: translateX(6px); transition: opacity 200ms ease, transform 250ms var(--out); }
+.rail a::after { content: ""; width: 18px; height: 1px; background: currentColor; transition: width 300ms var(--out), background-color 200ms ease; }
+.rail a[aria-current="true"] { color: var(--cream); }
+.rail a[aria-current="true"]::after { width: 34px; background: var(--red); }
+@media (hover: hover) and (pointer: fine) { .rail a:hover { color: var(--cream); } .rail a:hover span { opacity: 1; transform: none; } }
+.progress { position: fixed; left: 0; top: 0; height: 2px; width: 100%; z-index: 21; transform-origin: 0 0; transform: scaleX(0); background: var(--red); }
+
+/* custom cursor */
+.cursor { position: fixed; left: 0; top: 0; z-index: 40; pointer-events: none; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; border: 1px solid rgba(243,238,229,.55); display: grid; place-items: center; transition: width 250ms var(--out), height 250ms var(--out), margin 250ms var(--out), background-color 200ms ease, border-color 200ms ease, opacity 200ms ease; opacity: 0; }
+.cursor b { font: 600 9px/1 var(--ui); letter-spacing: .14em; text-transform: uppercase; color: var(--night); opacity: 0; transition: opacity 150ms ease; white-space: nowrap; }
+.cursor.is-on { opacity: 1; }
+.cursor.is-label { width: 74px; height: 74px; margin: -37px 0 0 -37px; background: var(--cream); border-color: var(--cream); }
+.cursor.is-label b { opacity: 1; }
+.cursor.is-link { width: 12px; height: 12px; margin: -6px 0 0 -6px; background: var(--red); border-color: var(--red); }
+@media (hover: none), (pointer: coarse) { .cursor { display: none; } }
+
+/* loader */
+.loader { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: var(--night); transition: opacity 900ms ease, visibility 0s 900ms; }
+.loader.is-done { opacity: 0; visibility: hidden; }
+.loader__in { display: grid; justify-items: center; gap: 18px; }
+.loader__in img { width: 64px; height: 64px; }
+.loader__num { font: 300 64px/1 var(--disp); font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+.loader__bar { width: 180px; height: 1px; background: var(--line); overflow: hidden; }
+.loader__bar i { display: block; height: 100%; background: var(--red); transform-origin: 0 0; transform: scaleX(0); transition: transform 200ms linear; }
+
+/* chapters */
+/* the page floats over the 3D world: empty space passes drags through to the car */
+main { position: relative; z-index: 2; pointer-events: none; }
+.ch { position: relative; min-height: 100vh; padding: 120px var(--g) 80px; display: flex; align-items: center; }
+.ch * { pointer-events: none; }
+.ch .panel, .ch .panel *, .ch .card, .ch .card *, .ch .contact, .ch .contact *, .hero__foot > * , .hero__foot > * *, .steps__hud, .steps__hud * { pointer-events: auto; }
+.ch__n { display: block; color: var(--red); margin-bottom: 18px; }
+.panel { max-width: 460px; }
+.panel--r { margin-left: auto; margin-right: calc(var(--g) + 50px); }
+.h { margin: 0; font: 400 clamp(44px, 6.4vw, 96px)/.92 var(--disp); letter-spacing: -.035em; }
+.h i { font-style: italic; font-weight: 300; }
+.h .red { color: var(--red); }
+.lead { margin: 22px 0 0; font: italic 400 clamp(19px, 1.6vw, 23px)/1.45 var(--text); color: var(--cream-2); }
+.p { margin: 16px 0 0; color: var(--cream-2); }
+.note { margin-top: 18px; color: var(--cream-3); font: 500 12px/1.5 var(--ui); letter-spacing: .02em; }
+
+/* hero */
+.hero { align-items: flex-end; padding-bottom: 64px; }
+.hero__title { position: absolute; left: 0; right: 0; top: 50%; translate: 0 -58%; margin: 0; text-align: center; pointer-events: none; font: 800 clamp(80px, 21vw, 360px)/.8 var(--disp); letter-spacing: -.06em; color: transparent; -webkit-text-stroke: 1px rgba(243,238,229,.22); user-select: none; white-space: nowrap; }
+.hero__title i { font-weight: 300; }
+.hero__foot { width: 100%; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; gap: 32px; align-items: end; }
+.hero__name { margin: 0; font: 400 clamp(40px, 5.2vw, 82px)/.92 var(--disp); letter-spacing: -.035em; }
+.hero__name i { font-weight: 300; }
+.hero__lead { margin: 0; max-width: 420px; font: italic 400 20px/1.45 var(--text); color: var(--cream-2); }
+.scroll-cue { display: flex; align-items: center; gap: 12px; color: var(--cream-2); }
+.scroll-cue i { position: relative; width: 1px; height: 44px; background: var(--line); overflow: hidden; }
+.scroll-cue i::after { content: ""; position: absolute; left: 0; top: -40%; width: 1px; height: 40%; background: var(--red); animation: cue 2s var(--io) infinite; }
+@keyframes cue { to { top: 100%; } }
+.hero__meta { position: absolute; top: 96px; left: var(--g); right: var(--g); display: flex; justify-content: space-between; color: var(--cream-3); }
+
+/* the run */
+.launch { margin-top: 30px; display: flex; flex-wrap: wrap; align-items: center; gap: 18px; }
+.btn { position: relative; display: inline-flex; align-items: center; gap: 12px; padding: 16px 24px; border: 0; border-radius: 999px; background: var(--red); color: var(--night); font: 600 13px/1 var(--ui); letter-spacing: .12em; text-transform: uppercase; text-decoration: none; cursor: pointer; transition: transform 140ms var(--out), background-color 200ms ease, opacity 200ms ease; will-change: transform; }
+.btn:active { transform: scale(.96); }
+.btn[disabled] { opacity: .45; cursor: default; }
+.btn--o { background: transparent; color: var(--cream); box-shadow: inset 0 0 0 1px var(--line-2); }
+@media (hover: hover) and (pointer: fine) { .btn:not([disabled]):hover { background: var(--cream); color: var(--night); } }
+.meter { display: grid; gap: 6px; }
+.meter b { font: 300 46px/1 var(--disp); font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+.meter b small { font-size: 18px; color: var(--cream-2); margin-left: 4px; }
+.meter__track { position: relative; width: 220px; height: 2px; background: var(--line); }
+.meter__track i { position: absolute; inset: 0; background: var(--red); transform-origin: 0 0; transform: scaleX(0); }
+
+/* the car / exploded view */
+.ch--tall { min-height: 260vh; align-items: flex-start; }
+.sticky { position: sticky; top: 0; height: 100vh; display: flex; align-items: center; width: 100%; padding: 100px 0 60px; }
+.parts { margin: 26px 0 0; padding: 0; list-style: none; display: grid; gap: 2px; counter-reset: p; }
+.parts button { width: 100%; display: grid; grid-template-columns: 34px 1fr auto; align-items: baseline; gap: 8px; padding: 10px 0; border: 0; border-top: 1px solid var(--line); background: none; text-align: left; cursor: pointer; color: var(--cream-2); transition: color 200ms ease; }
+.parts button span:first-child { font: 600 11px var(--ui); letter-spacing: .1em; color: var(--cream-3); }
+.parts button b { font: 400 22px/1.15 var(--disp); letter-spacing: -.01em; }
+.parts button em { font: 600 10px var(--ui); letter-spacing: .14em; text-transform: uppercase; font-style: normal; color: var(--cream-3); }
+.parts button[aria-pressed="true"] { color: var(--cream); }
+.parts button[aria-pressed="true"] span:first-child { color: var(--red); }
+@media (hover: hover) and (pointer: fine) { .parts button:hover { color: var(--cream); } }
+.detail { margin-top: 18px; min-height: 112px; }
+.detail p { margin: 0; font: italic 400 19px/1.5 var(--text); color: var(--cream-2); transition: opacity 180ms ease, filter 180ms ease, transform 240ms var(--out); }
+.detail.is-swapping p { opacity: 0; filter: blur(3px); transform: translateY(4px); }
+.explode-ctl { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 8px; }
+.sticky .h { font-size: clamp(40px, 4.6vw, 70px); }
+.sticky .parts { margin-top: 18px; }
+.sticky .parts button { padding: 7px 0; }
+.sticky .parts button b { font-size: 19px; }
+.sticky .detail { min-height: 92px; margin-top: 14px; }
+.sticky .detail p { font-size: 17px; }
+
+/* process steps */
+.ch--steps { display: block; padding: 0 var(--g); }
+.steps__sticky { position: sticky; top: 0; height: 100vh; pointer-events: none; }
+.steps__hud { position: absolute; left: 0; right: 0; bottom: 48px; display: flex; gap: 28px; align-items: center; pointer-events: auto; }
+.steps__hud ol { margin: 0; padding: 0; list-style: none; display: flex; gap: 6px; }
+.steps__hud li { width: 46px; height: 3px; background: var(--line); overflow: hidden; }
+.steps__hud li i { display: block; height: 100%; background: var(--red); transform-origin: 0 0; transform: scaleX(0); }
+.steps__mode { color: var(--cream-2); }
+.step { min-height: 100vh; display: flex; align-items: center; margin-top: -100vh; pointer-events: none; }
+.step:first-of-type { margin-top: -100vh; }
+.step + .step { margin-top: 0; }
+.step .panel { pointer-events: auto; }
+.tags3 { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 6px; }
+.tags3 span { padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--cream-2); }
+.figs { margin: 22px 0 0; display: grid; grid-template-columns: repeat(3, auto); gap: 22px; justify-content: start; }
+.figs dt { color: var(--cream-3); }
+.figs dd { margin: 4px 0 0; font: 300 30px/1 var(--disp); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+
+/* next race */
+.race__when { margin-top: 26px; display: grid; grid-template-columns: repeat(4, auto); gap: 6px 22px; justify-content: start; }
+.race__when b { font: 300 clamp(40px, 4.4vw, 64px)/1 var(--disp); font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+.race__when span { color: var(--cream-3); }
+.race__place { margin: 14px 0 0; font: 500 15px/1.5 var(--ui); color: var(--cream-2); }
+.race__facts { margin: 24px 0 0; display: grid; grid-template-columns: repeat(4, auto); gap: 20px; justify-content: start; }
+.race__facts dt { color: var(--cream-3); }
+.race__facts dd { margin: 4px 0 0; font: 400 22px/1 var(--disp); }
+.live { display: inline-flex; align-items: center; gap: 8px; color: var(--red); }
+.live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--red); animation: pulse 1.4s ease infinite; }
+@keyframes pulse { 50% { opacity: .3; } }
+
+/* team */
+.team { width: 100%; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.4fr); gap: 48px; align-items: center; }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; perspective: 900px; }
+.card { position: relative; min-height: 210px; padding: 20px; border-radius: 14px; border: 1px solid var(--line); background: linear-gradient(160deg, rgba(40,38,33,.78), rgba(15,14,12,.78)); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); display: flex; flex-direction: column; justify-content: space-between; gap: 14px; transform-style: preserve-3d; transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform 500ms var(--out), border-color 200ms ease; overflow: hidden; }
+.card.is-tilting { transition: transform 80ms linear, border-color 200ms ease; }
+.card::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(260px circle at var(--gx, 50%) var(--gy, 0%), rgba(255,255,255,.12), transparent 60%); opacity: 0; transition: opacity 300ms ease; }
+.card:hover::after { opacity: 1; }
+.card__role { color: var(--cream-3); }
+.card h3 { margin: 0; font: 400 26px/1.02 var(--disp); letter-spacing: -.02em; transform: translateZ(30px); }
+.card h3 i { font-weight: 300; }
+.card p { margin: 0; font: 400 15px/1.45 var(--ui); color: var(--cream-2); transform: translateZ(18px); }
+.card--lead { grid-column: span 3; min-height: 0; background: linear-gradient(140deg, rgba(200,16,26,.85), rgba(90,8,12,.85)); border-color: rgba(255,43,47,.5); }
+.card--lead .card__role, .card--lead p { color: rgba(243,238,229,.82); }
+.card--lead h3 { font-size: 34px; }
+
+/* partners */
+.partners { width: 100%; display: grid; gap: 40px; }
+.tiers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; perspective: 900px; }
+.tier h3 { margin: 0; font: 400 34px/1 var(--disp); letter-spacing: -.02em; }
+.tier .k { color: var(--red); }
+.contact { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px; padding-top: 28px; border-top: 1px solid var(--line); }
+.mail { display: inline-block; font: 300 clamp(30px, 4.6vw, 70px)/1 var(--disp); letter-spacing: -.035em; text-decoration: none; background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat; transition: background-size 400ms var(--out), color 200ms ease; overflow-wrap: anywhere; }
+@media (hover: hover) and (pointer: fine) { .mail:hover { background-size: 100% 1px; color: var(--red); } }
+.contact__side { display: grid; gap: 10px; justify-items: start; }
+.school { font: 400 13px/1.55 var(--ui); color: var(--cream-3); font-style: normal; max-width: 520px; }
+footer { position: relative; z-index: 2; padding: 30px var(--g) 40px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; color: var(--cream-3); border-top: 1px solid var(--line); background: linear-gradient(transparent, rgba(11,11,10,.9) 40%); }
+footer a { text-decoration: none; }
+@media (hover: hover) and (pointer: fine) { footer a:hover { color: var(--cream); } }
+
+/* reveal on arrival */
+.js [data-rv] { opacity: 0; transform: translateY(24px); transition: opacity 800ms ease, transform 1000ms var(--soft); transition-delay: calc(var(--d, 0) * 1ms); }
+.js [data-rv].is-in { opacity: 1; transform: none; }
+
+/* small screens: the scene keeps the top half, text takes the bottom */
+@media (max-width: 860px) {
+  .rail { display: none; }
+  .ch { align-items: flex-end; padding: 46vh 18px 40px; }
+  .panel, .panel--r { max-width: none; margin: 0; padding: 22px 20px; border-radius: 16px; background: rgba(11,11,10,.74); border: 1px solid var(--line); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .hero { padding-bottom: 32px; }
+  .hero__title { top: 30%; font-size: 26vw; }
+  .hero__foot { grid-template-columns: 1fr; gap: 16px; }
+  .hero__meta { top: 76px; }
+  .ch--tall { padding-top: 0; align-items: flex-start; }
+  .sticky { align-items: flex-end; padding: 0 0 20px; }
+  .sticky .panel { max-height: 52vh; overflow: auto; }
+  .parts button { padding: 7px 0; }
+  .parts button b { font-size: 18px; }
+  .detail { min-height: 0; }
+  .step { align-items: flex-end; padding-bottom: 80px; }
+  .steps__hud { bottom: 18px; }
+  .team, .tiers { grid-template-columns: 1fr; }
+  .cards { grid-template-columns: 1fr 1fr; }
+  .card--lead { grid-column: span 2; }
+  .card { min-height: 0; }
+  .race__when { grid-template-columns: repeat(4, auto); gap: 4px 14px; }
+  .race__facts { grid-template-columns: repeat(2, auto); }
+  .figs { grid-template-columns: repeat(3, auto); gap: 14px; }
+  .h { font-size: clamp(40px, 11vw, 64px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .js [data-rv] { transform: none; transition: opacity 400ms ease; }
+  .scroll-cue i::after, .live::before { animation: none; }
+  .card { transition: none; }
+}
+
+/* ── Team-site polish: heavy condensed headlines with a serif accent word, timing-screen numerals,
+   squared controls, numbered cards, a proper menu, a stat strip, running bands and a footer wordmark.
+   These rules deliberately come last and restyle the base rules above. ── */
+:root { --head: "Archivo", "Instrument Sans", system-ui, sans-serif; }
+.k { font: 600 11px/1.3 var(--head); font-stretch: 108%; letter-spacing: .16em; text-transform: uppercase; }
+.h, .hero__name { font: 800 clamp(46px, 6.8vw, 108px)/.86 var(--head); font-stretch: 70%; letter-spacing: -.01em; text-transform: uppercase; }
+.h i, .hero__name i { font: italic 300 .84em/1 var(--disp); text-transform: none; letter-spacing: -.035em; }
+.hero__name { font-size: clamp(42px, 5.6vw, 90px); }
+.hero__title { font: 900 clamp(90px, 25vw, 430px)/.8 var(--head); font-stretch: 64%; letter-spacing: -.02em; text-transform: uppercase; -webkit-text-stroke: 1px rgba(243,238,229,.2); }
+.lead, .hero__lead { font: 400 clamp(16px, 1.25vw, 18px)/1.6 var(--ui); color: var(--cream-2); }
+.loader__num, .meter b, .race__when b, .figs dd, .race__facts dd { font-family: var(--head); font-weight: 700; font-stretch: 72%; letter-spacing: 0; }
+.parts button b { font: 700 19px/1.15 var(--head); font-stretch: 78%; text-transform: uppercase; letter-spacing: .01em; }
+.card h3, .tier h3 { font: 800 28px/.95 var(--head); font-stretch: 72%; text-transform: uppercase; letter-spacing: 0; }
+.card h3 i { font: italic 300 .9em/1 var(--disp); text-transform: none; }
+.card--lead h3, .tier h3 { font-size: 40px; }
+.turn__t { font: 700 26px/1.05 var(--head); font-stretch: 76%; text-transform: uppercase; letter-spacing: 0; }
+.mail { font: 800 clamp(28px, 5vw, 84px)/1 var(--head); font-stretch: 70%; text-transform: uppercase; letter-spacing: -.005em; }
+.detail p { font: 400 16px/1.6 var(--ui); font-style: normal; }
+.sticky .detail p { font-size: 15.5px; }
+
+.btn { border-radius: 2px; padding: 17px 24px; font-family: var(--head); font-stretch: 106%; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%); }
+.btn--o { clip-path: none; border-radius: 2px; }
+.btn--sm { padding: 13px 18px; font-size: 11px; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%); }
+.chip { border-radius: 2px; }
+.tag__txt { border-radius: 2px; }
+.turn { border-radius: 3px; }
+.card { border-radius: 3px; }
+.cards, .tiers { counter-reset: c; }
+.cards .card, .tiers .card { counter-increment: c; }
+.cards .card::before, .tiers .card::before { content: "0" counter(c); position: absolute; right: 16px; top: 16px; font: 600 11px/1 var(--head); font-stretch: 108%; letter-spacing: .14em; color: var(--cream-3); }
+.card--lead::before { color: rgba(243,238,229,.7) !important; }
+.card__role { padding-right: 34px; }
+
+/* top bar */
+.top { z-index: 30; }
+.menu { z-index: 25; }
+.top::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 130px; z-index: -1; pointer-events: none; background: linear-gradient(rgba(11,11,10,.72), transparent); }
+.brand { font: 800 17px/1 var(--head); font-stretch: 72%; text-transform: uppercase; letter-spacing: .03em; }
+.brand i { font: italic 300 16px/1 var(--disp); text-transform: none; letter-spacing: 0; }
+.top__where { position: absolute; left: 50%; translate: -50% 0; margin: 0; display: flex; align-items: center; gap: 10px; color: var(--cream-2); pointer-events: none; }
+.top__where b { color: var(--cream); font-weight: 600; }
+.top__where i { width: 28px; height: 1px; background: var(--red); }
+.menu-btn { position: relative; width: 44px; height: 44px; padding: 0; border: 1px solid var(--line-2); border-radius: 2px; background: rgba(11,11,10,.45); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); cursor: pointer; transition: background-color 200ms ease, transform 140ms var(--out); }
+.menu-btn:active { transform: scale(.95); }
+.menu-btn span { position: absolute; left: 13px; right: 13px; height: 1.5px; background: var(--cream); transition: transform 350ms var(--out), top 350ms var(--out), background-color 200ms ease; }
+.menu-btn span:first-child { top: 18px; } .menu-btn span:last-child { top: 25px; }
+.menu-btn[aria-expanded="true"] span:first-child { top: 21.5px; transform: rotate(45deg); }
+.menu-btn[aria-expanded="true"] span:last-child { top: 21.5px; transform: rotate(-45deg); }
+@media (hover: hover) and (pointer: fine) { .menu-btn:hover { background: var(--cream); } .menu-btn:hover span { background: var(--night); } }
+
+/* full-screen menu */
+.menu { position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 110px var(--g) 34px; background: var(--night); clip-path: inset(0 0 100% 0); visibility: hidden; transition: clip-path 700ms var(--io), visibility 0s 700ms; }
+.menu.is-open { clip-path: inset(0); visibility: visible; transition: clip-path 700ms var(--io); }
+.menu ol { margin: 0; padding: 0; list-style: none; display: grid; }
+.menu li { overflow: hidden; border-bottom: 1px solid var(--line); }
+.menu li a { display: flex; align-items: baseline; gap: 22px; padding: .08em 0; text-decoration: none; font: 800 clamp(38px, 9.4vh, 104px)/1 var(--head); font-stretch: 68%; text-transform: uppercase; transform: translateY(105%); transition: transform 700ms var(--soft), color 200ms ease, padding-left 300ms var(--out); transition-delay: 0ms, 0ms, 0ms; }
+.menu.is-open li a { transform: none; transition-delay: calc(120ms + var(--i) * 45ms), 0ms, 0ms; }
+.menu li a span { font: 600 11px/1 var(--head); font-stretch: 108%; letter-spacing: .16em; color: var(--red); width: 30px; }
+@media (hover: hover) and (pointer: fine) { .menu li a:hover { color: var(--red); padding-left: 14px; } }
+.menu__foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; color: var(--cream-2); }
+.menu__foot a { text-decoration: none; }
+@media (hover: hover) and (pointer: fine) { .menu__foot a:hover { color: var(--cream); } }
+
+/* hero stat strip */
+.stats { grid-column: 1 / -1; margin: 6px 0 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); background: rgba(11,11,10,.35); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.stats > div { padding: 14px 18px 12px; display: flex; flex-direction: column-reverse; gap: 6px; }
+.stats > div + div { border-left: 1px solid var(--line); }
+.stats dt { color: var(--cream-3); }
+.stats dd { margin: 0; font: 700 clamp(28px, 3vw, 44px)/1 var(--head); font-stretch: 72%; font-variant-numeric: tabular-nums; }
+.stats dd small { font-size: .45em; font-weight: 600; margin-left: 4px; color: var(--red); }
+
+/* running bands between chapters */
+.marquee { overflow: hidden; padding: 5vw 0; pointer-events: none; -webkit-user-select: none; user-select: none; }
+.marquee__in { display: flex; width: max-content; white-space: nowrap; will-change: transform; font: 900 clamp(64px, 13vw, 220px)/.9 var(--head); font-stretch: 64%; text-transform: uppercase; color: transparent; -webkit-text-stroke: 1px rgba(243,238,229,.34); }
+.marquee__in span { padding-right: .32em; }
+.marquee__in em { font-style: normal; color: var(--red); -webkit-text-stroke: 0; }
+
+/* footer */
+footer { display: block; padding: 0; background: var(--night); }
+.foot__mark { margin: 0; padding: 4vw 0 0; overflow: hidden; text-align: center; white-space: nowrap; font: 900 16.4vw/.78 var(--head); font-stretch: 62%; text-transform: uppercase; letter-spacing: -.01em; color: var(--cream); }
+.foot__mark i { font: italic 300 .8em/1 var(--disp); text-transform: none; color: var(--red); letter-spacing: -.04em; }
+.foot__row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 22px var(--g) 30px; border-top: 1px solid var(--line); color: var(--cream-3); }
+
+@media (max-width: 860px) {
+  .top__where, .top .btn--sm { display: none; }
+  .h, .hero__name { font-size: clamp(40px, 12.5vw, 68px); }
+  .stats dd { font-size: 24px; } .stats > div { padding: 10px 10px 9px; } .stats dt { font-size: 8.5px; letter-spacing: .1em; }
+  .card--lead h3, .tier h3 { font-size: 32px; }
+  .menu { padding-top: 90px; }
+  .menu li a { font-size: clamp(30px, min(7.4vh, 11.4vw), 64px); gap: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .menu, .menu.is-open, .menu li a, .menu.is-open li a { transition: none; } }
+</style>
+<script>document.documentElement.classList.add('js');</script>
+<script src="js/f1-data.js" defer></script>
+<script src="js/xp.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<canvas id="gl" data-model="assets/model/car.bin" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+<div class="tags" data-tags aria-hidden="false"></div>
+<div class="cursor" data-cursor aria-hidden="true"><b data-cursor-label>Drag</b></div>
+<div class="progress" data-progress aria-hidden="true"></div>
+
+<div class="loader" data-loader aria-hidden="true">
+  <div class="loader__in">
+    <img src="assets/img/logo-badge-light.png" alt="" width="64" height="64">
+    <span class="loader__num" data-loader-num>0</span>
+    <span class="loader__bar"><i data-loader-bar></i></span>
+    <span class="k" style="color:var(--cream-3)">Loading Chassis Zero One</span>
+  </div>
+</div>
+
+<header class="top">
+  <a class="brand" href="#hero" aria-label="Wesley's Wyverns Racing, back to the start"><img src="assets/img/logo-badge-light.png" alt="" width="30" height="30"><span>Wyverns <i>Racing</i></span></a>
+  <p class="top__where k" data-where aria-hidden="true"><b data-where-n>01</b><i></i><span data-where-t>Start</span></p>
+  <div class="top__right">
+    <a class="btn btn--sm" href="#partners">Partner with us</a>
+    <button class="menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu" aria-label="Open the menu"><span></span><span></span></button>
+  </div>
+</header>
+<div class="menu" id="menu" data-menu>
+  <nav aria-label="Menu">
+    <ol>
+      <li><a href="#hero" style="--i:0"><span>01</span>Start</a></li>
+      <li><a href="#run" style="--i:1"><span>02</span>Twenty metres</a></li>
+      <li><a href="#car" style="--i:2"><span>03</span>The car</a></li>
+      <li><a href="#process" style="--i:3"><span>04</span>Engineering</a></li>
+      <li><a href="#race" style="--i:4"><span>05</span>Next race</a></li>
+      <li><a href="#team" style="--i:5"><span>06</span>Team</a></li>
+      <li><a href="#partners" style="--i:6"><span>07</span>Partners</a></li>
+    </ol>
+  </nav>
+  <div class="menu__foot k"><a href="mailto:wesleyswyvernsracing@gmail.com">wesleyswyvernsracing@gmail.com</a><span>Kingswood School, Bath</span><a href="index.html">Classic site ↗</a></div>
+</div>
+<nav aria-label="Chapters">
+  <ol class="rail k" data-rail>
+    <li><a href="#hero"><span>Start</span></a></li>
+    <li><a href="#run"><span>Twenty metres</span></a></li>
+    <li><a href="#car"><span>The car</span></a></li>
+    <li><a href="#process"><span>Engineering</span></a></li>
+    <li><a href="#race"><span>Next race</span></a></li>
+    <li><a href="#team"><span>Team</span></a></li>
+    <li><a href="#partners"><span>Partners</span></a></li>
+  </ol>
+</nav>
+
+<main id="main">
+
+<section class="ch hero" id="hero" data-key="hero" aria-labelledby="hero-name">
+  <div class="hero__meta k" aria-hidden="true"><span>STEM Racing · Kingswood School, Bath</span><span>Season one · in development</span></div>
+  <p class="hero__title" aria-hidden="true">Wyverns</p>
+  <div class="hero__foot">
+    <h1 class="hero__name" id="hero-name" data-rv>Wesley's Wyverns <i>Racing</i></h1>
+    <p class="hero__lead" data-rv style="--d:150">Student engineers designing, simulating and machining a CO₂-powered race car — then racing it over twenty metres.</p>
+    <p class="scroll-cue k" data-rv style="--d:300"><i aria-hidden="true"></i>Scroll · drag the car</p>
+    <dl class="stats" data-rv style="--d:420">
+      <div><dt class="k">The track</dt><dd>20<small>m</small></dd></div>
+      <div><dt class="k">CO₂ per run</dt><dd>8<small>g</small></dd></div>
+      <div><dt class="k">Students</dt><dd>06</dd></div>
+      <div><dt class="k">Chassis Zero One</dt><dd>243.6<small>mm</small></dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="ch" id="run" data-key="run" aria-labelledby="run-title">
+  <div class="panel">
+    <span class="ch__n k" data-rv>01 — The track</span>
+    <h2 class="h" id="run-title" data-rv>Twenty metres. <i>One cartridge.</i></h2>
+    <p class="lead" data-rv style="--d:100">No corners. There is nowhere for a bad decision to hide, so every surface has to be justified with data before it is cut.</p>
+    <div class="launch" data-rv style="--d:200">
+      <button class="btn" type="button" data-launch>Pierce the cartridge ↗</button>
+      <div class="meter" aria-live="off"><b><span data-meter>0.0</span><small>m</small></b><span class="meter__track"><i data-meter-bar></i></span></div>
+    </div>
+    <p class="note" data-rv style="--d:260">An illustration of the run, not a timed result. Race times stay blank until the season earns them.</p>
+  </div>
+</section>
+
+<section class="ch ch--tall" id="car" aria-labelledby="car-title">
+  <div class="sticky" data-key="car">
+    <div class="panel">
+      <span class="ch__n k">02 — The car</span>
+      <h2 class="h" id="car-title">Chassis <i>Zero One</i></h2>
+      <p class="p">The team's own CAD model, taken apart. Select a part — here or on the car.</p>
+      <ol class="parts" data-parts></ol>
+      <div class="detail" data-detail aria-live="polite"><p data-detail-text>Every surface on the car is there for a reason we can show.</p></div>
+      <div class="explode-ctl"><button class="chip k" type="button" data-explode aria-pressed="true">Exploded</button><button class="chip k" type="button" data-reset-view>Reset view</button></div>
+    </div>
+  </div>
+</section>
+
+ <div class="marquee" data-marquee="Design|Simulate|Machine|Test|*Race" aria-hidden="true"></div>
+
+<section class="ch ch--steps" id="process" aria-labelledby="process-title">
+  <h2 class="vh" id="process-title">Engineering: five disciplines, one machine</h2>
+  <div class="steps__sticky">
+    <div class="steps__hud k" aria-hidden="true"><ol data-step-bars><li><i></i></li><li><i></i></li><li><i></i></li><li><i></i></li><li><i></i></li></ol><span class="steps__mode" data-step-mode>Design · x-ray</span></div>
+  </div>
+  <article class="step" data-key="design" data-step="0">
+    <div class="panel panel--r">
+      <span class="ch__n k">03 — Engineering · 1 of 5</span>
+      <h3 class="h">Design</h3>
+      <p class="lead">Regulation study, three competing body concepts, then one parametric solid model. Packaging the cartridge chamber and tether line shapes the car long before aerodynamics gets a say.</p>
+      <div class="tags3 k"><span>Concept</span><span>Geometry</span><span>Aerodynamics</span></div>
+    </div>
+  </article>
+  <article class="step" data-key="simulate" data-step="1">
+    <div class="panel panel--r">
+      <span class="ch__n k">03 — Engineering · 2 of 5</span>
+      <h3 class="h">Simulate</h3>
+      <p class="lead">Flow studies run in SolidWorks Flow Simulation over eighty solver iterations, plotted as velocity in Z.</p>
+      <dl class="figs"><div><dt class="k">Max, m/s</dt><dd>40.166</dd></div><div><dt class="k">Min, m/s</dt><dd>−6.218</dd></div><div><dt class="k">Iterations</dt><dd>80</dd></div></dl>
+      <p class="note">The moving streamlines here are a stylised illustration. The figures are from the team's study.</p>
+    </div>
+  </article>
+  <article class="step" data-key="machine" data-step="2">
+    <div class="panel panel--r">
+      <span class="ch__n k">03 — Engineering · 3 of 5</span>
+      <h3 class="h">Machine</h3>
+      <p class="lead">Toolpaths from the frozen model, blank cut on the CNC, wings printed and cleaned up, then filled, sanded and sprayed by hand. The finish is measured, not judged by eye.</p>
+      <div class="tags3 k"><span>Manufacturing</span><span>Precision</span><span>Material</span></div>
+    </div>
+  </article>
+  <article class="step" data-key="test" data-step="3">
+    <div class="panel panel--r">
+      <span class="ch__n k">03 — Engineering · 4 of 5</span>
+      <h3 class="h">Test</h3>
+      <p class="lead">Rolling resistance, launch repeatability and wheel alignment measured against the simulation's predictions. Where they disagree, the simulation gets rebuilt — not the logbook.</p>
+      <div class="tags3 k"><span>Data</span><span>Validation</span><span>Refinement</span></div>
+    </div>
+  </article>
+  <article class="step" data-key="race" data-step="4">
+    <div class="panel panel--r">
+      <span class="ch__n k">03 — Engineering · 5 of 5</span>
+      <h3 class="h">Race</h3>
+      <p class="lead">Twenty metres, judged alongside the portfolio, the pit display and the verbal presentation. A season of analysis resolves into roughly one second of running.</p>
+      <div class="tags3 k"><span>Execution</span><span>Pressure</span><span>Performance</span></div>
+    </div>
+  </article>
+</section>
+
+<section class="ch" id="race" data-key="f1" aria-labelledby="race-title">
+  <div class="panel">
+    <span class="ch__n k" data-rv>04 — Race diary · <span data-race-season>Formula 1</span></span>
+    <h2 class="h" id="race-title" data-rv><span data-race-name>Next Grand Prix</span></h2>
+    <p class="race__place" data-rv data-race-place>Loading the calendar…</p>
+    <div class="race__when" data-rv data-race-when aria-live="off">
+      <b data-cd="d">—</b><b data-cd="h">—</b><b data-cd="m">—</b><b data-cd="s">—</b>
+      <span class="k">Days</span><span class="k">Hours</span><span class="k">Min</span><span class="k">Sec</span>
+    </div>
+    <dl class="race__facts" data-rv data-race-facts></dl>
+    <div class="turn" data-turn hidden aria-live="polite"><p class="turn__k k" data-turn-k>Turn</p><p class="turn__t" data-turn-t></p><p class="note" data-turn-note></p></div>
+    <div class="turn-ctl" data-rv><button class="chip k" type="button" data-turn-step="-1">← Corner</button><button class="chip k" type="button" data-turn-step="1">Corner →</button><button class="chip k" type="button" data-turn-exit hidden>Full circuit</button></div>
+    <p class="note" data-rv data-race-note>Click a corner to watch our car take it.</p>
+  </div>
+</section>
+
+<section class="ch" id="team" data-key="team" aria-labelledby="team-title">
+  <div class="team">
+    <div>
+      <span class="ch__n k" data-rv>05 — The team</span>
+      <h2 class="h" id="team-title" data-rv>Six students. <i>Every part of the car.</i></h2>
+      <p class="lead" data-rv style="--d:100">One project and finance manager, three design engineers, and two on sponsorship, marketing and graphics.</p>
+    </div>
+    <div class="cards" data-tilt-group>
+      <article class="card card--lead" data-tilt data-rv><span class="card__role k">Project Manager &amp; Finance Manager</span><h3>Mikhail <i>Kryukov</i></h3><p>Runs the programme: the season plan, the budget, and the deadlines the design, build and race dates hang on.</p></article>
+      <article class="card" data-tilt data-rv style="--d:60"><span class="card__role k">Design engineer</span><h3>Peter <i>Evans</i></h3><p>CAD, aerodynamics and manufacturing.</p></article>
+      <article class="card" data-tilt data-rv style="--d:120"><span class="card__role k">Design engineer</span><h3>Meguru <i>Kato</i></h3><p>CAD, aerodynamics and manufacturing.</p></article>
+      <article class="card" data-tilt data-rv style="--d:180"><span class="card__role k">Design engineer</span><h3>Damiloju <i>Adesemowo</i></h3><p>CAD, aerodynamics and manufacturing.</p></article>
+      <article class="card" data-tilt data-rv style="--d:240"><span class="card__role k">Sponsorship &amp; marketing</span><h3>George <i>Baines</i></h3><p>Sponsorships: approaching partners, agreements, and what a partner gets on the car and in the portfolio.</p></article>
+      <article class="card" data-tilt data-rv style="--d:300"><span class="card__role k">Graphic design &amp; marketing</span><h3>Russell <i>Gurung</i></h3><p>Livery, pit display and portfolio design, plus the marketing side of sponsorship.</p></article>
+    </div>
+  </div>
+</section>
+
+ <div class="marquee" data-marquee="Build with us|*Build with us" aria-hidden="true"></div>
+
+<section class="ch" id="partners" data-key="partners" aria-labelledby="partners-title">
+  <div class="partners">
+    <div class="panel" style="max-width:640px">
+      <span class="ch__n k" data-rv>06 — Partners</span>
+      <h2 class="h" id="partners-title" data-rv>Build <i class="red">with us.</i></h2>
+      <p class="lead" data-rv style="--d:100">Every design revision costs model board, machine time and print material. Partners decide how many ideas reach the track — credited on the car, the pit display, team kit, the portfolio and this site.</p>
+    </div>
+    <div class="tiers" data-tilt-group>
+      <article class="card tier" data-tilt data-rv><span class="k">Availability · One</span><h3>Title</h3><p>Naming position on the car and in the team name. Primary placement across livery, pit display, kit and portfolio.</p></article>
+      <article class="card tier" data-tilt data-rv style="--d:80"><span class="k">Availability · Two</span><h3>Technical</h3><p>Materials, machining, printing, software or engineering mentorship — credited on the car and in the portfolio.</p></article>
+      <article class="card tier" data-tilt data-rv style="--d:160"><span class="k">Availability · Open</span><h3>Supporting</h3><p>Contribution towards competition costs, credited on the car, the pit display and this site.</p></article>
+    </div>
+    <div class="contact" data-rv>
+      <a class="mail" href="mailto:wesleyswyvernsracing@gmail.com?subject=Wesley%27s%20Wyverns%20Racing%20%E2%80%94%20partnership">wesleyswyvernsracing@<wbr>gmail.com</a>
+      <div class="contact__side">
+        <button class="btn btn--o" type="button" data-copy="wesleyswyvernsracing@gmail.com"><span data-copy-label>Copy address</span></button>
+        <address class="school">A Kingswood School team. To verify the team or contact the school: Kingswood School, Lansdown Road, Bath BA1 5RG · <a href="tel:+441225734200">+44 1225 734200</a> · <a href="mailto:Reception@kingswood.bath.sch.uk">Reception@kingswood.bath.sch.uk</a></address>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+<footer>
+  <p class="foot__mark" aria-hidden="true">Wyverns <i>Racing</i></p>
+  <div class="foot__row k">
+    <span>© <span data-year>2026</span> Wesley's Wyverns Racing · Kingswood School, Bath</span>
+    <span><a href="mailto:wesleyswyvernsracing@gmail.com">wesleyswyvernsracing@gmail.com</a> · <a href="index.html">Classic site</a> · <a href="#hero">Back to start ↑</a></span>
+  </div>
+</footer>
+</body>
+</html>
